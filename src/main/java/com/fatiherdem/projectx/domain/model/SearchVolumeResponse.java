@@ -1,13 +1,19 @@
 package com.fatiherdem.projectx.domain.model;
 
-import lombok.AllArgsConstructor;
 import lombok.Data;
 
 @Data
-@AllArgsConstructor
 public class SearchVolumeResponse {
 
 	private String keyword;
 
-	private Double score;
+	private Integer score;
+
+	private Long totalElapsedTimeInMillis;
+
+	public SearchVolumeResponse(String keyword, Integer score, Long totalElapsedTimeInMillis) {
+		this.keyword = keyword;
+		this.score = score;
+		this.totalElapsedTimeInMillis = totalElapsedTimeInMillis;
+	}
 }

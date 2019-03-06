@@ -1,7 +1,8 @@
 package com.fatiherdem.projectx.domain.estimation;
 
-import com.fatiherdem.projectx.domain.model.SearchVolumeResponse;
+import com.fatiherdem.projectx.domain.FibonacciUtils;
 import com.fatiherdem.projectx.domain.httpclient.AmazonHttpClient;
+import com.fatiherdem.projectx.domain.model.SearchVolumeResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -13,6 +14,8 @@ import java.util.*;
 @RequiredArgsConstructor
 public class EstimationService {
 
+	private static final double MAX_POINT_FOR_SEARCH = 100.0;
+
 	private final AmazonHttpClient amazonHttpClient;
 
 	public SearchVolumeResponse getSearchVolume(String searchedKeyword) {
@@ -21,13 +24,9 @@ public class EstimationService {
 
 		List<String> separatedKeywords = getSeparatedKeywords(searchedKeyword);
 
-		Map<String, Integer> keywordResultOrderMap = new LinkedHashMap<>();
+		Double totalScoreOfKeyword = 0.0;
 
-		Map<String, Double> keywordOrderMultiplierMap = new LinkedHashMap<>();
-
-		Map<String, Double> keywordPointLetterByLetterMap = new LinkedHashMap<>();
-
-		Double maxPointForLetter = calculateMaxLetterPoint(searchedKeyword.length());
+		int letterIndex = 1;
 
 		for (String separatedKeyword : separatedKeywords) {
 
@@ -35,33 +34,20 @@ public class EstimationService {
 
 			Integer resultOrder = getResultOrderOfKeyword(searchedKeyword, resultsForKeyword);
 
-			keywordResultOrderMap.put(separatedKeyword, resultOrder);
+			Double resultOrderMultiplier = calculateResultOrderMultiplier(resultOrder, resultsForKeyword.size());
 
-			Double resultOrderMultiplier = calculateResultOrderMultiplier(resultOrder);
-			keywordOrderMultiplierMap.put(separatedKeyword, resultOrderMultiplier);
+			Double rawLetterPoint = calculateRawLetterPoint(letterIndex, searchedKeyword.length());
 
-			Double letterPoint = calculateLetterPointWithResultOrderMultiplier(maxPointForLetter, resultOrderMultiplier);
-			keywordPointLetterByLetterMap.put(separatedKeyword, letterPoint);
+			Double finalLetterScore = calculateLetterPointWithResultOrder(rawLetterPoint, resultOrderMultiplier);
+
+			totalScoreOfKeyword += finalLetterScore;
+			letterIndex++;
 		}
-
-		Double searchVolume = calculateTotalPointOfKeyword(keywordPointLetterByLetterMap.values());
 
 		long endTime = System.currentTimeMillis();
+		long totalElapsedTime = endTime - startTime;
 
-		log.error("Total execution time: " + (endTime - startTime));
-
-		return new SearchVolumeResponse(searchedKeyword, searchVolume);
-	}
-
-	private Double calculateTotalPointOfKeyword(Collection<Double> keywordPointLetterByLetters) {
-
-		double totalPoint = 0.0;
-
-		for (Double point : keywordPointLetterByLetters) {
-			totalPoint += point;
-		}
-
-		return totalPoint;
+		return new SearchVolumeResponse(searchedKeyword, totalScoreOfKeyword.intValue(), totalElapsedTime);
 	}
 
 	/**
@@ -85,26 +71,28 @@ public class EstimationService {
 		return separatedKeywords;
 	}
 
-	private Double calculateResultOrderMultiplier(Integer resultOrderOfExactMatch) {
+	private Double calculateResultOrderMultiplier(Integer resultOrderOfExactMatch, Integer resultCount) {
 
-		if (resultOrderOfExactMatch == 0) {
+		if (resultOrderOfExactMatch == 0 || resultCount == 0) {
 			return 0.0;
 		}
 
-		return 1.0 - ((resultOrderOfExactMatch - 1.0) / 10.0);
-
+		return 1.0 - ((resultOrderOfExactMatch - 1.0) / resultCount);
 	}
 
-	private Double calculateMaxLetterPoint(Integer searchedKeywordLength) {
-
-		double maxPointForSearch = 100.0;
-
-		return maxPointForSearch / searchedKeywordLength;
-	}
-
-	private Double calculateLetterPointWithResultOrderMultiplier(Double maxPoint, Double resultOrderMultiplier) {
-
+	private Double calculateLetterPointWithResultOrder(Double maxPoint, Double resultOrderMultiplier) {
 		return maxPoint * resultOrderMultiplier;
+	}
+
+	private Double calculateRawLetterPoint(Integer letterIndex, Integer keywordLength) {
+
+		Integer sumOfFibonacciSeries = FibonacciUtils.sumOfFibonacciSeries(keywordLength);
+
+		int i = keywordLength - letterIndex + 1;
+
+		Integer fibonacci = FibonacciUtils.fibonacci(i);
+
+		return fibonacci * MAX_POINT_FOR_SEARCH / sumOfFibonacciSeries;
 	}
 
 	private Integer getResultOrderOfKeyword(String searchedKeyword, List<String> searchResult) {
