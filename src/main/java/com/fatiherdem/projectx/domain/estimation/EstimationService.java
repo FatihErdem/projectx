@@ -7,7 +7,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 @Slf4j
 @Service
@@ -28,6 +29,7 @@ public class EstimationService {
 
 		int letterIndex = 1;
 
+		// We calculate for each keyword in the keyword space
 		for (String separatedKeyword : separatedKeywords) {
 
 			List<String> resultsForKeyword = amazonHttpClient.getAutocompleteResult(separatedKeyword);
@@ -56,9 +58,6 @@ public class EstimationService {
 	 * For example: input = sellics
 	 * <p>
 	 * s, se, sel, sell, selli, sellic, sellics will be generated
-	 *
-	 * @param keyword
-	 * @return list of separated keyword
 	 */
 	private List<String> getSeparatedKeywords(String keyword) {
 
@@ -71,6 +70,10 @@ public class EstimationService {
 		return separatedKeywords;
 	}
 
+	/**
+	 * Calculates and returns result order multiplier.
+	 * This result will multiply with raw letter point.
+	 */
 	private Double calculateResultOrderMultiplier(Integer resultOrderOfExactMatch, Integer resultCount) {
 
 		if (resultOrderOfExactMatch == 0 || resultCount == 0) {
@@ -84,6 +87,9 @@ public class EstimationService {
 		return maxPoint * resultOrderMultiplier;
 	}
 
+	/**
+	 * This method try to boost early match and penalizes late match for exact match.
+	 */
 	private Double calculateRawLetterPoint(Integer letterIndex, Integer keywordLength) {
 
 		Integer sumOfFibonacciSeries = FibonacciUtils.sumOfFibonacciSeries(keywordLength);
@@ -95,6 +101,10 @@ public class EstimationService {
 		return fibonacci * MAX_POINT_FOR_SEARCH / sumOfFibonacciSeries;
 	}
 
+	/**
+	 * Result result order of keyword.
+	 * For example if search keyword found at 4. order return 4
+	 */
 	private Integer getResultOrderOfKeyword(String searchedKeyword, List<String> searchResult) {
 
 		int indexOfExactMatch = searchResult.indexOf(searchedKeyword);
